@@ -221,6 +221,7 @@ function App() {
     username: '',
     password: '',
   })
+  const [showLoginPassword, setShowLoginPassword] = useState(false)
   const isTester = user?.role === 'tester'
   const isDeveloper = user?.role === 'developer'
   const isAdmin = user?.role === 'admin'
@@ -625,18 +626,43 @@ function App() {
 
           <label>
             Password
-            <input
-              type="password"
-              required
-              value={loginForm.password}
-              onChange={(event) =>
-                setLoginForm({
-                  ...loginForm,
-                  password: event.target.value,
-                })
-              }
-              placeholder="Enter password"
-            />
+            <div className="password-input-wrap">
+              <input
+                type={showLoginPassword ? 'text' : 'password'}
+                required
+                autoComplete="current-password"
+                value={loginForm.password}
+                onChange={(event) =>
+                  setLoginForm({
+                    ...loginForm,
+                    password: event.target.value,
+                  })
+                }
+                placeholder="Enter password"
+              />
+              <button
+                className="password-visibility-toggle"
+                type="button"
+                aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showLoginPassword}
+                onClick={() => setShowLoginPassword((visible) => !visible)}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  {showLoginPassword ? (
+                    <>
+                      <path d="M3 3l18 18" />
+                      <path d="M10.6 10.6a2 2 0 002.8 2.8" />
+                      <path d="M9.9 5.2A10.8 10.8 0 0112 5c5.2 0 8.8 4.4 9.7 6-.4.7-1.3 1.8-2.5 2.8M6.2 6.2C3.9 7.6 2.6 9.7 2.3 11c.9 1.6 4.5 6 9.7 6 1.1 0 2.1-.2 3-.5" />
+                    </>
+                  ) : (
+                    <>
+                      <path d="M2.3 12s3.5-7 9.7-7 9.7 7 9.7 7-3.5 7-9.7 7-9.7-7-9.7-7z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </>
+                  )}
+                </svg>
+              </button>
+            </div>
           </label>
 
           {error && <p className="error-message">{error}</p>}
