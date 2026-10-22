@@ -697,7 +697,7 @@ textarea {
 
 .user-row {
   display: grid;
-  grid-template-columns: minmax(64px, 0.4fr) 1fr minmax(100px, 0.5fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(100px, 0.5fr) auto;
   align-items: center;
   gap: 16px;
   padding: 16px 20px;
@@ -706,7 +706,6 @@ textarea {
   border-radius: 12px;
 }
 
-.user-row > span:first-child,
 .user-role {
   color: #758096;
   font-size: 13px;

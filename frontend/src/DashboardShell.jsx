@@ -20,6 +20,10 @@ function SidebarIcon({ name }) {
     return <svg {...common}><path d="M4 4h16l1 11v5H3v-5L4 4z" /><path d="M3 14h5l2 3h4l2-3h5" /></svg>
   }
 
+  if (name === 'projects') {
+    return <svg {...common}><path d="M3 7.5A2.5 2.5 0 015.5 5h5l2 2h6A2.5 2.5 0 0121 9.5v8a2.5 2.5 0 01-2.5 2.5h-13A2.5 2.5 0 013 17.5z" /><path d="M3.5 10h17" /></svg>
+  }
+
   return <svg {...common}><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></svg>
 }
 

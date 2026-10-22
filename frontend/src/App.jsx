@@ -786,6 +786,7 @@ function App() {
         navItems={[
           { id: 'dashboard', label: 'Issues', icon: 'issues', onClick: () => setPage('dashboard') },
           { id: 'accounts', label: 'Manage Accounts', icon: 'users', onClick: () => setPage('accounts') },
+          { id: 'projects', label: 'Manage Projects', icon: 'projects', onClick: () => setPage('projects') },
         ]}
         actions={(
           <button className="secondary-button" onClick={() => setPage('dashboard')}>
@@ -801,7 +802,7 @@ function App() {
           <div className="section-heading">
             <div>
               <h2>Users</h2>
-              <p>Account ID, username, and role</p>
+              <p>Username and role</p>
             </div>
             <button
               className="primary-button"
@@ -817,7 +818,6 @@ function App() {
           <div className="user-list" aria-live="polite">
             {users.map((managedUser) => (
               <article className="user-row" key={managedUser.user_id}>
-                <span>#{managedUser.user_id}</span>
                 <strong>{managedUser.username}</strong>
                 <span className="user-role">{managedUser.role}</span>
                 <button
@@ -829,37 +829,6 @@ function App() {
               </article>
             ))}
           </div>
-        </section>
-
-        <section className="projects-admin-section">
-          <div className="section-heading">
-            <div>
-              <h2>Projects</h2>
-              <p>Projects available when testers report issues.</p>
-            </div>
-          </div>
-          <form className="project-create-form" onSubmit={createProject}>
-            <label>
-              Project name
-              <input
-                required
-                maxLength={100}
-                value={projectName}
-                onChange={(event) => setProjectName(event.target.value)}
-                placeholder="Enter a project name"
-              />
-            </label>
-            <button className="primary-button" type="submit">Create Project</button>
-          </form>
-          {projects.length === 0 ? (
-            <p className="empty-state">Create the first project to enable issue reporting.</p>
-          ) : (
-            <ul className="project-list">
-              {projects.map((project) => (
-                <li key={project.project_id}>{project.name}</li>
-              ))}
-            </ul>
-          )}
         </section>
 
         {showUserModal && (
@@ -937,6 +906,61 @@ function App() {
       </DashboardShell>
     )
   }
+
+  if (isAdmin && page === 'projects') {
+    return (
+      <DashboardShell
+        user={user}
+        profileMenu={<ProfileMenu user={user} onLogout={logout} />}
+        title="Manage Projects"
+        subtitle="Create and manage projects available for issue reporting."
+        activePage="projects"
+        navItems={[
+          { id: 'dashboard', label: 'Issues', icon: 'issues', onClick: () => setPage('dashboard') },
+          { id: 'accounts', label: 'Manage Accounts', icon: 'users', onClick: () => setPage('accounts') },
+          { id: 'projects', label: 'Manage Projects', icon: 'projects', onClick: () => setPage('projects') },
+        ]}
+        actions={(
+          <button className="secondary-button" onClick={() => setPage('dashboard')}>
+            Back to Dashboard
+          </button>
+        )}
+      >
+        {error && <p className="error-message" role="alert">{error}</p>}
+        {success && <p className="success-message" role="status">{success}</p>}
+        <section className="projects-admin-section">
+          <div className="section-heading">
+            <div>
+              <h2>Projects</h2>
+              <p>Projects available when testers report issues.</p>
+            </div>
+          </div>
+          <form className="project-create-form" onSubmit={createProject}>
+            <label>
+              Project name
+              <input
+                required
+                maxLength={100}
+                value={projectName}
+                onChange={(event) => setProjectName(event.target.value)}
+                placeholder="Enter a project name"
+              />
+            </label>
+            <button className="primary-button" type="submit">Create Project</button>
+          </form>
+          {projects.length === 0 ? (
+            <p className="empty-state">Create the first project to enable issue reporting.</p>
+          ) : (
+            <ul className="project-list">
+              {projects.map((project) => (
+                <li key={project.project_id}>{project.name}</li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </DashboardShell>
+    )
+  }
   
   return (
     <DashboardShell
@@ -959,6 +983,16 @@ function App() {
           onClick: () => {
             setPage('my-issues')
             fetchMyIssues()
+          },
+        }] : []),
+        ...(isAdmin ? [{
+          id: 'projects',
+          label: 'Manage Projects',
+          icon: 'projects',
+          onClick: () => {
+            setError('')
+            setSuccess('')
+            setPage('projects')
           },
         }] : []),
         ...(isAdmin ? [{
