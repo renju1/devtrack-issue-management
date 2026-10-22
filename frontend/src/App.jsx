@@ -1,6 +1,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
+import DashboardShell from './DashboardShell.jsx'
 
 const API_URL = import.meta.env.VITE_API_URL?.replace(/\/+$/, '')
 
@@ -116,6 +117,26 @@ function IssueProgress({ status }) {
   )
 }
 
+function ReporterIdentity({ username }) {
+  const displayName = username || 'Unknown reporter'
+  return (
+    <div className="reporter-identity" title={displayName}>
+      <span className="reporter-avatar" aria-hidden="true">
+        {username ? username.charAt(0).toUpperCase() : '?'}
+      </span>
+      <span className="reporter-name">{displayName}</span>
+    </div>
+  )
+}
+
+function IssueStatusBadge({ status }) {
+  return (
+    <span className={`status-badge status-${status.toLowerCase().replaceAll(' ', '-')}`}>
+      {status}
+    </span>
+  )
+}
+
 function IssueDetailsDialog({
   issue, comments, commentsLoading, commentsError, commentSuccess,
   commentText, commentSubmitting, onCommentTextChange, onSubmitComment,
@@ -123,7 +144,7 @@ function IssueDetailsDialog({
 }) {
   if (!issue) return null
   return (
-    <div className="modal-backdrop" onMouseDown={(event) => {
+    <div className="issue-details-backdrop" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose()
     }}>
       <section className="issue-details-modal" role="dialog" aria-modal="true" aria-labelledby="issue-details-title">
@@ -131,43 +152,45 @@ function IssueDetailsDialog({
           <h2 id="issue-details-title">{issue.title}</h2>
           <button className="secondary-button" onClick={onClose} aria-label="Close issue details">Close</button>
         </div>
-        <IssueProgress status={issue.status} />
-        <p>{issue.description}</p>
-        <dl className="issue-details-list">
-          <div><dt>Priority</dt><dd>{issue.priority}</dd></div>
-          <div><dt>Project</dt><dd>{issue.project_name || 'Unassigned'}</dd></div>
-          <div><dt>Assigned developer</dt><dd>{issue.assigned_developer || 'Unassigned'}</dd></div>
-          <div><dt>Created</dt><dd>{formatIssueDate(issue.created_at)}</dd></div>
-        </dl>
-        <section className="discussion-section" aria-labelledby="discussion-heading">
-          <div className="section-heading">
-            <div>
-              <h3 id="discussion-heading">Discussion</h3>
-              <p>Comments on this issue</p>
+        <div className="issue-details-scroll">
+          <IssueProgress status={issue.status} />
+          <p className="issue-details-description">{issue.description}</p>
+          <dl className="issue-details-list">
+            <div><dt>Priority</dt><dd>{issue.priority}</dd></div>
+            <div><dt>Project</dt><dd>{issue.project_name || 'Unassigned'}</dd></div>
+            <div><dt>Assigned developer</dt><dd>{issue.assigned_developer || 'Unassigned'}</dd></div>
+            <div><dt>Created</dt><dd>{formatIssueDate(issue.created_at)}</dd></div>
+          </dl>
+          <section className="discussion-section" aria-labelledby="discussion-heading">
+            <div className="section-heading">
+              <div>
+                <h3 id="discussion-heading">Discussion</h3>
+                <p>Comments on this issue</p>
+              </div>
             </div>
-          </div>
-          {commentsError && <p className="error-message" role="alert">{commentsError}</p>}
-          {commentSuccess && <p className="success-message" role="status">{commentSuccess}</p>}
-          {commentsLoading ? <p className="empty-state">Loading comments...</p> : (
-            comments.length ? (
-              <ol className="comment-list">
-                {comments.map((comment) => (
-                  <li className="comment-item" key={comment.comment_id}>
-                    <div className="comment-meta"><strong>{comment.username}</strong><time>{formatIssueDate(comment.created_at)}</time></div>
-                    <p>{comment.comment_text}</p>
-                  </li>
-                ))}
-              </ol>
-            ) : <p className="empty-state">No comments yet. Start the discussion.</p>
-          )}
-          <form className="comment-form" onSubmit={onSubmitComment}>
-            <label htmlFor="issue-comment-text">Add a comment</label>
-            <textarea id="issue-comment-text" required maxLength={5000} rows={3} value={commentText} onChange={(event) => onCommentTextChange(event.target.value)} placeholder="Write a comment..." />
-            <button className="primary-button" type="submit" disabled={commentSubmitting || !commentText.trim()}>
-              {commentSubmitting ? 'Posting...' : 'Post comment'}
-            </button>
-          </form>
-        </section>
+            {commentsError && <p className="error-message" role="alert">{commentsError}</p>}
+            {commentSuccess && <p className="success-message" role="status">{commentSuccess}</p>}
+            {commentsLoading ? <p className="empty-state">Loading comments...</p> : (
+              comments.length ? (
+                <ol className="comment-list">
+                  {comments.map((comment) => (
+                    <li className="comment-item" key={comment.comment_id}>
+                      <div className="comment-meta"><strong>{comment.username}</strong><time>{formatIssueDate(comment.created_at)}</time></div>
+                      <p>{comment.comment_text}</p>
+                    </li>
+                  ))}
+                </ol>
+              ) : <p className="empty-state">No comments yet. Start the discussion.</p>
+            )}
+            <form className="comment-form" onSubmit={onSubmitComment}>
+              <label htmlFor="issue-comment-text">Add a comment</label>
+              <textarea id="issue-comment-text" required maxLength={5000} rows={3} value={commentText} onChange={(event) => onCommentTextChange(event.target.value)} placeholder="Write a comment..." />
+              <button className="primary-button" type="submit" disabled={commentSubmitting || !commentText.trim()}>
+                {commentSubmitting ? 'Posting...' : 'Post comment'}
+              </button>
+            </form>
+          </section>
+        </div>
       </section>
     </div>
   )
@@ -597,7 +620,7 @@ function App() {
   
   if (!token || !user) {
     return (
-      <main className="dashboard">
+      <main className="dashboard login-page">
         <form
           className="issue-form"
           onSubmit={(event) => {
@@ -677,23 +700,22 @@ function App() {
 
   if (isTester && page === 'my-issues') {
     return (
-      <main className="dashboard">
-        <header className="account-header">
-          <div>
-            <p className="eyebrow">ISSUES YOU REPORTED</p>
-            <h1>My Issues</h1>
-            <p className="subtitle">Issues created by your account.</p>
-          </div>
-          <div className="account-header-actions">
-            <button
-              className="secondary-button"
-              onClick={() => setPage('dashboard')}
-            >
-              Back to Dashboard
-            </button>
-            <ProfileMenu user={user} onLogout={logout} />
-          </div>
-        </header>
+      <DashboardShell
+        user={user}
+        profileMenu={<ProfileMenu user={user} onLogout={logout} />}
+        title="My Issues"
+        subtitle="Issues created by your account."
+        activePage="my-issues"
+        navItems={[
+          { id: 'dashboard', label: 'Issues', icon: 'issues', onClick: () => setPage('dashboard') },
+          { id: 'my-issues', label: 'My Issues', icon: 'inbox', onClick: () => fetchMyIssues() },
+        ]}
+        actions={(
+          <button className="secondary-button" onClick={() => setPage('dashboard')}>
+            Back to Dashboard
+          </button>
+        )}
+      >
 
         {error && <p className="error-message" role="alert">{error}</p>}
         {myIssuesLoading ? (
@@ -703,28 +725,40 @@ function App() {
         ) : (
           <div className="issue-list my-issue-list">
             {myIssues.map((issue) => (
-              <article className="issue-card my-issue-card" key={issue.issue_id}>
-                <div className="issue-content">
-                  <div className="issue-title-row">
-                    <h3>{issue.title}</h3>
-                    <span className={`priority priority-${issue.priority.toLowerCase()}`}>
-                      {issue.priority}
-                    </span>
+              <article className="issue-card issue-board-row my-issue-board-row" key={issue.issue_id}>
+                <div className="issue-board-summary">
+                  <h3>{issue.title}</h3>
+                  <div className="issue-board-subline">
+                    <span>#{issue.issue_id}</span>
+                    <span>Created {formatIssueDate(issue.created_at)}</span>
                   </div>
-                  <IssueProgress status={issue.status} />
                   <p className="issue-description">{issue.description}</p>
-                  <div className="issue-meta">
-                    <span>Project: {issue.project_name || 'Unassigned'}</span>
-                    <span>Developer: {issue.assigned_developer || 'Unassigned'}</span>
-                    <span>Created: {formatIssueDate(issue.created_at)}</span>
-                  </div>
+                </div>
+                <div className="issue-board-cell">
+                  <span className="issue-board-label">Reporter</span>
+                  <ReporterIdentity username={issue.reporter_username} />
+                </div>
+                <div className="issue-board-cell">
+                  <span className="issue-board-label">Priority</span>
+                  <span className={`priority priority-${issue.priority.toLowerCase()}`}>{issue.priority}</span>
+                </div>
+                <div className="issue-board-cell">
+                  <span className="issue-board-label">Status</span>
+                  <IssueStatusBadge status={issue.status} />
+                </div>
+                <div className="issue-board-cell">
+                  <span className="issue-board-label">Project</span>
+                  <span className="issue-board-value">{issue.project_name || 'Unassigned'}</span>
+                </div>
+                <div className="issue-board-cell">
+                  <span className="issue-board-label">Assigned developer</span>
+                  <span className="issue-board-value">{issue.assigned_developer || 'Unassigned'}</span>
                 </div>
                 <button
-                  className="secondary-button"
+                  className="secondary-button issue-details-button"
+                  aria-label={`View details and discussion for issue ${issue.issue_id}`}
                   onClick={() => openIssueDetails(issue.issue_id)}
-                >
-                  View details
-                </button>
+                >View details</button>
               </article>
             ))}
           </div>
@@ -737,29 +771,28 @@ function App() {
           onCommentTextChange={setCommentText} onSubmitComment={submitIssueComment}
           onClose={closeIssueDetails}
         />
-      </main>
+      </DashboardShell>
     )
   }
 
   if (isAdmin && page === 'accounts') {
     return (
-      <main className="dashboard">
-        <header className="account-header">
-          <div>
-            <p className="eyebrow">ADMINISTRATION</p>
-            <h1>Manage Accounts</h1>
-            <p className="subtitle">Create and manage DevTrack users.</p>
-          </div>
-          <div className="account-header-actions">
-            <button
-              className="secondary-button"
-              onClick={() => setPage('dashboard')}
-            >
-              Back to Dashboard
-            </button>
-            <ProfileMenu user={user} onLogout={logout} />
-          </div>
-        </header>
+      <DashboardShell
+        user={user}
+        profileMenu={<ProfileMenu user={user} onLogout={logout} />}
+        title="Manage Accounts"
+        subtitle="Create and manage DevTrack users."
+        activePage="accounts"
+        navItems={[
+          { id: 'dashboard', label: 'Issues', icon: 'issues', onClick: () => setPage('dashboard') },
+          { id: 'accounts', label: 'Manage Accounts', icon: 'users', onClick: () => setPage('accounts') },
+        ]}
+        actions={(
+          <button className="secondary-button" onClick={() => setPage('dashboard')}>
+            Back to Dashboard
+          </button>
+        )}
+      >
 
         {error && <p className="error-message" role="alert">{error}</p>}
         {success && <p className="success-message" role="status">{success}</p>}
@@ -901,62 +934,54 @@ function App() {
             </form>
           </div>
         )}
-      </main>
+      </DashboardShell>
     )
   }
   
   return (
-    
-    <main className="dashboard">
-      <header className="topbar">
-        <div className="header-profile">
-          <ProfileMenu user={user} onLogout={logout} />
-        </div>
-        <div className="header-copy">
-          <p className="eyebrow">ISSUE MANAGEMENT</p>
-          <h1>DevTrack</h1>
-          <p className="subtitle">
-            Track issues. Manage priorities. Ship better software.
-          </p>
-        </div>
-
-        <div className="header-actions">
-          {isTester && (
-            <button
-              className="primary-button"
-              type="button"
-              onClick={() => setShowForm(!showForm)}
-            >
-              {showForm ? 'Cancel' : '+ New Issue'}
-            </button>
-          )}              
-          {isTester && (
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={() => {
-                setPage('my-issues')
-                fetchMyIssues()
-              }}
-            >
-              My Issues
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              className="primary-button"
-              type="button"
-              onClick={() => {
-                setError('')
-                setSuccess('')
-                setPage('accounts')
-              }}
-            >
-              Manage Accounts
-            </button>
-          )}
-        </div>
-      </header>
+    <DashboardShell
+      user={user}
+      profileMenu={<ProfileMenu user={user} onLogout={logout} />}
+      title={isDeveloper ? 'Assigned Issues' : 'Issues'}
+      subtitle={isDeveloper ? 'Issues assigned to your account.' : 'Track issues, priorities, and project progress.'}
+      activePage="dashboard"
+      navItems={[
+        {
+          id: 'dashboard',
+          label: isDeveloper ? 'Assigned Issues' : 'Issues',
+          icon: 'issues',
+          onClick: () => setPage('dashboard'),
+        },
+        ...(isTester ? [{
+          id: 'my-issues',
+          label: 'My Issues',
+          icon: 'inbox',
+          onClick: () => {
+            setPage('my-issues')
+            fetchMyIssues()
+          },
+        }] : []),
+        ...(isAdmin ? [{
+          id: 'accounts',
+          label: 'Manage Accounts',
+          icon: 'users',
+          onClick: () => {
+            setError('')
+            setSuccess('')
+            setPage('accounts')
+          },
+        }] : []),
+      ]}
+      actions={isTester && (
+        <button
+          className="primary-button"
+          type="button"
+          onClick={() => setShowForm(!showForm)}
+        >
+          {showForm ? 'Cancel' : '+ New Issue'}
+        </button>
+      )}
+    >
 
       <section className="stats">
         <article className="stat-card">
@@ -1155,79 +1180,67 @@ function App() {
         ) : (
           <div className="issue-list">
             {issues.map((issue) => (
-              <article className="issue-card" key={issue.issue_id}>
-                <div className="issue-content">
-                  <div className="issue-title-row">
-                    <h3>{issue.title}</h3>
-                    <span
-                      className={`priority priority-${issue.priority.toLowerCase()}`}
-                    >
-                      {issue.priority}
-                    </span>
-                  </div>
-
-                  <p className="issue-description">
-                    {issue.description}
-                  </p>
-
-                  <div className="issue-meta">
-                    <span>#{issue.issue_id}</span>
-                    <span>
-                      Developer: {issue.assigned_developer || 'Unassigned'}
-                    </span>
-                    <span>Project: {issue.project_name || 'Unassigned'}</span>
-                  </div>
+              <article className="issue-card issue-board-row" key={issue.issue_id}>
+                <div className="issue-board-summary">
+                  <h3>{issue.title}</h3>
+                  <div className="issue-board-subline"><span>#{issue.issue_id}</span></div>
+                  <p className="issue-description">{issue.description}</p>
                 </div>
-
-                <button className="secondary-button issue-details-button" onClick={() => openIssueDetails(issue.issue_id)}>
-                  View details &amp; discussion
+                <div className="issue-board-cell">
+                  <span className="issue-board-label">Reporter</span>
+                  <ReporterIdentity username={issue.reporter_username} />
+                </div>
+                <div className="issue-board-cell">
+                  <span className="issue-board-label">Priority</span>
+                  <span className={`priority priority-${issue.priority.toLowerCase()}`}>{issue.priority}</span>
+                </div>
+                <div className="issue-board-cell">
+                  <span className="issue-board-label">Status</span>
+                  {isDeveloper ? (
+                    <select
+                      className="issue-board-status-select"
+                      aria-label={`Status for issue ${issue.issue_id}`}
+                      value={issue.status}
+                      onChange={(event) => updateStatus(issue, event.target.value)}
+                    >
+                      <option>Open</option>
+                      <option>In Progress</option>
+                      <option>Resolved</option>
+                      <option>Closed</option>
+                    </select>
+                  ) : <IssueStatusBadge status={issue.status} />}
+                </div>
+                <div className="issue-board-cell">
+                  <span className="issue-board-label">Project</span>
+                  <span className="issue-board-value">{issue.project_name || 'Unassigned'}</span>
+                </div>
+                <div className="issue-board-cell">
+                  <span className="issue-board-label">Assigned developer</span>
+                  <span className="issue-board-value">{issue.assigned_developer || 'Unassigned'}</span>
+                </div>
+                <button className="secondary-button issue-details-button" aria-label={`View details and discussion for issue ${issue.issue_id}`} onClick={() => openIssueDetails(issue.issue_id)}>
+                  View details
                 </button>
 
-                {(isDeveloper || isAdmin) && (
-                  <div className="issue-actions">
-                    {isAdmin && (
-                      <label>
-                        <span>Assigned developer</span>
-                        <select
-                          value={issue.assigned_developer_id || ''}
-                          onChange={(event) =>
-                            assignIssue(issue, event.target.value)
-                          }
-                        >
-                          <option value="">Unassigned</option>
-                          {developers.map((developer) => (
-                            <option key={developer.user_id} value={developer.user_id}>
-                              {developer.username}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    )}
-                    {isDeveloper && (
-                      <label>
-                        <span>Status</span>
-                        <select
-                          value={issue.status}
-                          onChange={(event) =>
-                            updateStatus(issue, event.target.value)
-                          }
-                        >
-                          <option>Open</option>
-                          <option>In Progress</option>
-                          <option>Resolved</option>
-                          <option>Closed</option>
-                        </select>
-                      </label>
-                    )}
-
-                    {isAdmin && (
-                      <button
-                        className="delete-button"
-                        onClick={() => deleteIssue(issue.issue_id)}
+                {isAdmin && (
+                  <div className="issue-board-controls">
+                    <label>
+                      <span>Assigned developer</span>
+                      <select
+                        value={issue.assigned_developer_id || ''}
+                        onChange={(event) => assignIssue(issue, event.target.value)}
                       >
-                        Delete
-                      </button>
-                    )}
+                        <option value="">Unassigned</option>
+                        {developers.map((developer) => (
+                          <option key={developer.user_id} value={developer.user_id}>
+                            {developer.username}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button className="delete-button" onClick={() => deleteIssue(issue.issue_id)}>
+                      Delete
+                    </button>
                   </div>
                 )}
               </article>
@@ -1242,7 +1255,7 @@ function App() {
         onCommentTextChange={setCommentText} onSubmitComment={submitIssueComment}
         onClose={closeIssueDetails}
       />
-    </main>
+    </DashboardShell>
   )
 }
 

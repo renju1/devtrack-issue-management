@@ -730,10 +730,13 @@ def _fetch_issues_for_role(role, user_id):
                    i.project_id, projects.name AS project_name,
                    COALESCE(users.username, i.assigned_developer)
                        AS assigned_developer,
+                   reporter.username AS reporter_username,
                    i.created_at, i.updated_at
             FROM issues AS i
             LEFT JOIN users
                 ON users.user_id = i.assigned_developer_id
+            LEFT JOIN users AS reporter
+                ON reporter.user_id = i.created_by_user_id
             LEFT JOIN projects
                 ON projects.project_id = i.project_id
         """ + where_clause + " ORDER BY i.created_at DESC", tuple(values))
