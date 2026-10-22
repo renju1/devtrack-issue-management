@@ -116,6 +116,63 @@ function IssueProgress({ status }) {
   )
 }
 
+function IssueDetailsDialog({
+  issue, comments, commentsLoading, commentsError, commentSuccess,
+  commentText, commentSubmitting, onCommentTextChange, onSubmitComment,
+  onClose,
+}) {
+  if (!issue) return null
+  return (
+    <div className="modal-backdrop" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose()
+    }}>
+      <section className="issue-details-modal" role="dialog" aria-modal="true" aria-labelledby="issue-details-title">
+        <div className="issue-details-heading">
+          <h2 id="issue-details-title">{issue.title}</h2>
+          <button className="secondary-button" onClick={onClose} aria-label="Close issue details">Close</button>
+        </div>
+        <IssueProgress status={issue.status} />
+        <p>{issue.description}</p>
+        <dl className="issue-details-list">
+          <div><dt>Priority</dt><dd>{issue.priority}</dd></div>
+          <div><dt>Project</dt><dd>{issue.project_name || 'Unassigned'}</dd></div>
+          <div><dt>Assigned developer</dt><dd>{issue.assigned_developer || 'Unassigned'}</dd></div>
+          <div><dt>Created</dt><dd>{formatIssueDate(issue.created_at)}</dd></div>
+        </dl>
+        <section className="discussion-section" aria-labelledby="discussion-heading">
+          <div className="section-heading">
+            <div>
+              <h3 id="discussion-heading">Discussion</h3>
+              <p>Comments on this issue</p>
+            </div>
+          </div>
+          {commentsError && <p className="error-message" role="alert">{commentsError}</p>}
+          {commentSuccess && <p className="success-message" role="status">{commentSuccess}</p>}
+          {commentsLoading ? <p className="empty-state">Loading comments...</p> : (
+            comments.length ? (
+              <ol className="comment-list">
+                {comments.map((comment) => (
+                  <li className="comment-item" key={comment.comment_id}>
+                    <div className="comment-meta"><strong>{comment.username}</strong><time>{formatIssueDate(comment.created_at)}</time></div>
+                    <p>{comment.comment_text}</p>
+                  </li>
+                ))}
+              </ol>
+            ) : <p className="empty-state">No comments yet. Start the discussion.</p>
+          )}
+          <form className="comment-form" onSubmit={onSubmitComment}>
+            <label htmlFor="issue-comment-text">Add a comment</label>
+            <textarea id="issue-comment-text" required maxLength={5000} rows={3} value={commentText} onChange={(event) => onCommentTextChange(event.target.value)} placeholder="Write a comment..." />
+            <button className="primary-button" type="submit" disabled={commentSubmitting || !commentText.trim()}>
+              {commentSubmitting ? 'Posting...' : 'Post comment'}
+            </button>
+          </form>
+        </section>
+      </section>
+    </div>
+  )
+}
+
 function App() {
   const [issues, setIssues] = useState([])
   const [loading, setLoading] = useState(true)
@@ -130,6 +187,12 @@ function App() {
   const [myIssues, setMyIssues] = useState([])
   const [myIssuesLoading, setMyIssuesLoading] = useState(false)
   const [selectedIssue, setSelectedIssue] = useState(null)
+  const [comments, setComments] = useState([])
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const [commentsError, setCommentsError] = useState('')
+  const [commentSuccess, setCommentSuccess] = useState('')
+  const [commentText, setCommentText] = useState('')
+  const [commentSubmitting, setCommentSubmitting] = useState(false)
   const [success, setSuccess] = useState('')
   const [userForm, setUserForm] = useState({
     username: '',
@@ -266,15 +329,70 @@ function App() {
 
   async function openIssueDetails(issueId) {
     setError('')
+    setComments([])
+    setCommentsError('')
+    setCommentSuccess('')
+    setCommentText('')
     try {
       const response = await fetch(`${API_URL}/issues/${issueId}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       const data = await readApiResponse(response, 'Failed to load issue details')
       setSelectedIssue(data.issue)
+      await fetchIssueComments(issueId)
     } catch (err) {
       setError(err.message)
     }
+  }
+
+  async function fetchIssueComments(issueId) {
+    setCommentsLoading(true)
+    setCommentsError('')
+    try {
+      const response = await fetch(`${API_URL}/issues/${issueId}/comments`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await readApiResponse(response, 'Failed to load comments')
+      setComments(data.comments || [])
+    } catch (err) {
+      setCommentsError(err.message || 'Failed to load comments')
+    } finally {
+      setCommentsLoading(false)
+    }
+  }
+
+  async function submitIssueComment(event) {
+    event.preventDefault()
+    if (!selectedIssue || !commentText.trim()) return
+    setCommentSubmitting(true)
+    setCommentsError('')
+    setCommentSuccess('')
+    try {
+      const response = await fetch(`${API_URL}/issues/${selectedIssue.issue_id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ comment_text: commentText }),
+      })
+      await readApiResponse(response, 'Failed to post comment')
+      setCommentText('')
+      setCommentSuccess('Comment added.')
+      await fetchIssueComments(selectedIssue.issue_id)
+    } catch (err) {
+      setCommentsError(err.message || 'Failed to post comment')
+    } finally {
+      setCommentSubmitting(false)
+    }
+  }
+
+  function closeIssueDetails() {
+    setSelectedIssue(null)
+    setComments([])
+    setCommentsError('')
+    setCommentSuccess('')
+    setCommentText('')
   }
 
   useEffect(() => {
@@ -586,40 +704,13 @@ function App() {
           </div>
         )}
 
-        {selectedIssue && (
-          <div
-            className="modal-backdrop"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) setSelectedIssue(null)
-            }}
-          >
-            <section
-              className="issue-details-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="issue-details-title"
-            >
-              <div className="issue-details-heading">
-                <h2 id="issue-details-title">{selectedIssue.title}</h2>
-                <button
-                  className="secondary-button"
-                  onClick={() => setSelectedIssue(null)}
-                  aria-label="Close issue details"
-                >
-                  Close
-                </button>
-              </div>
-              <IssueProgress status={selectedIssue.status} />
-              <p>{selectedIssue.description}</p>
-              <dl className="issue-details-list">
-                <div><dt>Priority</dt><dd>{selectedIssue.priority}</dd></div>
-                <div><dt>Project</dt><dd>{selectedIssue.project_name || 'Unassigned'}</dd></div>
-                <div><dt>Assigned developer</dt><dd>{selectedIssue.assigned_developer || 'Unassigned'}</dd></div>
-                <div><dt>Created</dt><dd>{formatIssueDate(selectedIssue.created_at)}</dd></div>
-              </dl>
-            </section>
-          </div>
-        )}
+        <IssueDetailsDialog
+          issue={selectedIssue} comments={comments} commentsLoading={commentsLoading}
+          commentsError={commentsError} commentSuccess={commentSuccess}
+          commentText={commentText} commentSubmitting={commentSubmitting}
+          onCommentTextChange={setCommentText} onSubmitComment={submitIssueComment}
+          onClose={closeIssueDetails}
+        />
       </main>
     )
   }
@@ -1062,6 +1153,10 @@ function App() {
                   </div>
                 </div>
 
+                <button className="secondary-button issue-details-button" onClick={() => openIssueDetails(issue.issue_id)}>
+                  View details &amp; discussion
+                </button>
+
                 {(isDeveloper || isAdmin) && (
                   <div className="issue-actions">
                     {isAdmin && (
@@ -1114,6 +1209,13 @@ function App() {
           </div>
         )}
       </section>
+      <IssueDetailsDialog
+        issue={selectedIssue} comments={comments} commentsLoading={commentsLoading}
+        commentsError={commentsError} commentSuccess={commentSuccess}
+        commentText={commentText} commentSubmitting={commentSubmitting}
+        onCommentTextChange={setCommentText} onSubmitComment={submitIssueComment}
+        onClose={closeIssueDetails}
+      />
     </main>
   )
 }

@@ -526,6 +526,150 @@ def get_issue(issue_id):
             connection.close()
 
 
+MAX_COMMENT_LENGTH = 5000
+
+
+def _log_comment_database_error(operation, error):
+    app.logger.error(
+        "Issue comment %s database failure (errno=%s, sqlstate=%s)",
+        operation,
+        getattr(error, "errno", None),
+        getattr(error, "sqlstate", None),
+    )
+
+
+def _is_comments_table_missing(error):
+    return (
+        getattr(error, "errno", None) == 1146
+        and "issue_comments" in (getattr(error, "msg", "") or "")
+    )
+
+
+def _comment_issue_access(issue_id):
+    if issue_id < 1:
+        return None, None, (jsonify({"error": "Invalid issue ID"}), 400)
+    role = get_jwt().get("role")
+    if role not in ("tester", "developer", "admin"):
+        return None, None, (jsonify({"error": "Invalid user role"}), 403)
+    try:
+        current_user_id = int(get_jwt_identity())
+    except (TypeError, ValueError):
+        return None, None, (jsonify({"error": "Invalid authenticated user"}), 401)
+
+    conditions = ["issue_id = %s"]
+    values = [issue_id]
+    if role == "tester":
+        conditions.append("created_by_user_id = %s")
+        values.append(current_user_id)
+    elif role == "developer":
+        conditions.append("assigned_developer_id = %s")
+        values.append(current_user_id)
+    return role, current_user_id, (conditions, values)
+
+
+@app.route("/api/issues/<int:issue_id>/comments", methods=["GET"])
+@jwt_required()
+def get_issue_comments(issue_id):
+    role, user_id, access = _comment_issue_access(issue_id)
+    if role is None:
+        return access
+    conditions, values = access
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(
+            "SELECT issue_id FROM issues WHERE " + " AND ".join(conditions),
+            tuple(values),
+        )
+        if cursor.fetchone() is None:
+            return jsonify({"error": "Issue not found"}), 404
+        cursor.execute(
+            "SELECT c.comment_id, c.issue_id, c.user_id, u.username, "
+            "c.comment_text, c.created_at FROM issue_comments AS c "
+            "JOIN users AS u ON u.user_id = c.user_id "
+            "WHERE c.issue_id = %s "
+            "ORDER BY c.created_at ASC, c.comment_id ASC",
+            (issue_id,),
+        )
+        return jsonify({"comments": cursor.fetchall()}), 200
+    except mysql.connector.Error as error:
+        _log_comment_database_error("retrieval", error)
+        if _is_comments_table_missing(error):
+            return jsonify({
+                "error": "Issue comments are not installed. Apply migration 003_add_issue_comments.sql."
+            }), 503
+        return jsonify({"error": "Could not retrieve comments"}), 500
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if connection is not None and connection.is_connected():
+            connection.close()
+
+
+@app.route("/api/issues/<int:issue_id>/comments", methods=["POST"])
+@jwt_required()
+def create_issue_comment(issue_id):
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or set(data) != {"comment_text"}:
+        return jsonify({"error": "comment_text is required"}), 400
+    comment_text = data.get("comment_text")
+    if not isinstance(comment_text, str) or not comment_text.strip():
+        return jsonify({"error": "Comment text cannot be empty"}), 400
+    comment_text = comment_text.strip()
+    if len(comment_text) > MAX_COMMENT_LENGTH:
+        return jsonify({"error": "Comment text must be 5000 characters or fewer"}), 400
+
+    role, user_id, access = _comment_issue_access(issue_id)
+    if role is None:
+        return access
+    conditions, values = access
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(
+            "SELECT issue_id FROM issues WHERE " + " AND ".join(conditions),
+            tuple(values),
+        )
+        if cursor.fetchone() is None:
+            return jsonify({"error": "Issue not found"}), 404
+        cursor.execute(
+            "INSERT INTO issue_comments (issue_id, user_id, comment_text) "
+            "VALUES (%s, %s, %s)",
+            (issue_id, user_id, comment_text),
+        )
+        comment_id = cursor.lastrowid
+        cursor.execute(
+            "SELECT c.comment_id, c.issue_id, c.user_id, u.username, "
+            "c.comment_text, c.created_at FROM issue_comments AS c "
+            "JOIN users AS u ON u.user_id = c.user_id "
+            "WHERE c.comment_id = %s",
+            (comment_id,),
+        )
+        comment = cursor.fetchone()
+        if comment is None:
+            return jsonify({"error": "Comment created but could not be retrieved"}), 500
+        connection.commit()
+        return jsonify({"message": "Comment added", "comment": comment}), 201
+    except mysql.connector.Error as error:
+        if connection is not None:
+            connection.rollback()
+        _log_comment_database_error("creation", error)
+        if _is_comments_table_missing(error):
+            return jsonify({
+                "error": "Issue comments are not installed. Apply migration 003_add_issue_comments.sql."
+            }), 503
+        return jsonify({"error": "Could not create comment"}), 500
+    finally:
+        if cursor is not None:
+            cursor.close()
+        if connection is not None and connection.is_connected():
+            connection.close()
+
+
 @app.route("/api/my/issues", methods=["GET"])
 @jwt_required()
 def get_my_issues():

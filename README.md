@@ -31,6 +31,12 @@ The migration creates the projects table and adds nullable project and creator l
 
 Existing issues keep `NULL` project and creator values. Do not assign them arbitrarily. If a reliable source identifies the correct project and reporter, review a separate explicit backfill for those specific issue IDs. Until creator ownership is safely backfilled, those legacy issues will not appear in a tester's **My Issues** list; admins can still view them, and developers continue to see issues assigned to them.
 
+### Issue comments
+
+Review `backend/migrations/003_add_issue_comments.sql` and apply it manually in MySQL Workbench after the schema has the `issues` and `users` tables (and, for the current backend, after the reviewed project and issue ownership migration). The migration creates only `issue_comments`, with foreign keys to the existing issue and user primary keys. Deleting an issue cascades to its comments; deleting a user is restricted while their comments exist. The non-empty `CHECK` constraint is enforced by MySQL 8.0.16 and newer; the Flask endpoint also rejects empty and whitespace-only text. No migration is run by the application.
+
+Comments can be viewed or added by admins, by testers on issues they created, and by developers on issues assigned to them. The backend derives the author from the authenticated JWT.
+
 ## Start the application
 
 Ensure MySQL is running and the `devtrack_db` schema and tables are already set up. In one PowerShell terminal:

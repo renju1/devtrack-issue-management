@@ -631,6 +631,79 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.discussion-section {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid #e7eaf2;
+  padding-top: 18px;
+}
+
+.discussion-section .section-heading h3 {
+  margin: 0;
+}
+
+.comment-list {
+  display: grid;
+  gap: 10px;
+  max-height: 280px;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comment-item {
+  padding: 13px 15px;
+  background: #f7f8fc;
+  border: 1px solid #e7eaf2;
+  border-radius: 10px;
+}
+
+.comment-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 14px;
+  color: #758096;
+  font-size: 12px;
+}
+
+.comment-meta strong {
+  color: #343b50;
+}
+
+.comment-item p {
+  margin: 9px 0 0;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.comment-form {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.comment-form label {
+  color: #424b60;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.comment-form textarea {
+  width: 100%;
+}
+
+.comment-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.issue-details-button {
+  flex-shrink: 0;
+}
+
 @media (max-width: 760px) {
   .dashboard {
     padding: 28px 16px;
